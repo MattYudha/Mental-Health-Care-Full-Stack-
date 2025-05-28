@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  name                  String
+  passwordHash          String
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  phone                 String?
+  joinDate              DateTime  @default(now())
+  streak                Int       @default(0)
+  completedActivities   Int       @default(0)
+  supportSessions       Int       @default(0)
+  riskScore             Json?     // Stores current, previous, and change
+  recoveryCodes         RecoveryCode[]
+  notifications         Notification[]
+  notificationSettings  NotificationSettings?
+}
+
+model RecoveryCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  used      Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model NotificationSettings {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifyActivityReminders Boolean  @default(true)
+  notifyProgressUpdates   Boolean  @default(true)
+  notifySupportMessages   Boolean  @default(false)
+  notifyNewArticles       Boolean  @default(true)
+  notifyRiskAlerts        Boolean  @default(true)
+  notifyWeeklyReports     Boolean  @default(true)
+  emailNotifications      Boolean  @default(true)
+  pushNotifications       Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // e.g., 'activity_reminder', 'progress_update', 'support_message', 'new_article'
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+} 

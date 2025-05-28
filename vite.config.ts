@@ -10,6 +10,7 @@ export default defineConfig({
       // Opsi registerType: 'autoUpdate' akan otomatis memperbarui service worker
       // saat ada versi baru.
       registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
       // Opsi devOptions berguna untuk testing PWA di mode development.
       devOptions: {
         enabled: true, // Aktifkan untuk testing di dev
@@ -18,26 +19,50 @@ export default defineConfig({
       // Konfigurasi manifest PWA Anda
       manifest: {
         name: "Smart Health Monitoring App",
-        short_name: "HealthApp",
-        description: "Aplikasi untuk monitoring kesehatan mental.",
-        theme_color: "#ffffff",
+        short_name: "Health App",
+        description: "A comprehensive mental health monitoring application",
+        theme_color: "#0d9488",
         icons: [
           {
-            src: "pwa-192x192.png", // Ganti dengan path ikon Anda
+            src: "pwa-192x192.png",
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "pwa-512x512.png", // Ganti dengan path ikon Anda
+            src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
           },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
         ],
       },
-      // Opsi workbox bisa dikustomisasi lebih lanjut jika perlu
-      // workbox: {
-      //   globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-      // },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+      },
     }),
   ],
+  server: {
+    host: true,
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+      "/socket.io": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
+  },
 });
