@@ -1,20 +1,9 @@
 # Smart Health Monitoring App
 
-<div align="center">
-  <img src="https://via.placeholder.com/800x250.png?text=Smart+Health+Monitoring+App+Banner" alt="Smart Health Monitoring App Banner" style="width: 80%; max-width: 800px; border-radius: 10px; margin-bottom: 10px;"/>
-  <!-- Ganti URL placeholder di atas dengan URL banner aplikasi Anda yang sebenarnya -->
-  <p>
-    <a href="https://github.com/MattYudha/Mental-Health-Care-Full-Stack-/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
-    </a>
-    <img src="https://img.shields.io/badge/React-18.3.1-blue?logo=react" alt="React Version">
-    <img src="https://img.shields.io/badge/Vite-5.4.2-purple?logo=vite" alt="Vite Version">
-    <img src="https://img.shields.io/badge/TypeScript-5.5.3-blue?logo=typescript" alt="TypeScript Version">
-  </p>
-  <p><em>Aplikasi web modern untuk memantau dan meningkatkan kesehatan mental secara proaktif.</em></p>
-</div>
+![Smart Health Monitoring App Banner](https://via.placeholder.com/1200x300.png?text=Smart+Health+Monitoring+App)
+<!-- Ganti URL placeholder di atas dengan URL banner aplikasi Anda jika ada -->
 
-Dengan antarmuka yang intuitif dan fitur yang komprehensif, aplikasi ini bertujuan untuk memberdayakan pengguna dalam perjalanan kesehatan mental mereka.
+Aplikasi web modern yang dirancang untuk membantu pengguna memantau dan meningkatkan kesehatan mental mereka secara proaktif. Dengan antarmuka yang intuitif dan fitur yang komprehensif, aplikasi ini bertujuan untuk memberdayakan pengguna dalam perjalanan kesehatan mental mereka.
 
 ## ✨ Fitur Utama
 
@@ -27,14 +16,6 @@ Dengan antarmuka yang intuitif dan fitur yang komprehensif, aplikasi ini bertuju
 *   **(Segera Hadir) Autentikasi Aman:** Proses login dan registrasi yang aman untuk melindungi data pengguna.
 *   **(Segera Hadir) Jurnal Harian:** Catat suasana hati, pikiran, dan aktivitas harian.
 *   **(Segera Hadir) Modul Edukasi:** Akses ke artikel dan sumber daya terkait kesehatan mental.
-
-<details>
-  <summary>👀 Klik untuk melihat detail fitur lebih lanjut (Contoh Dropdown)</summary>
-  <ul>
-    <li><strong>Notifikasi Cerdas:</strong> Pengingat untuk aktivitas kesehatan dan check-in suasana hati.</li>
-    <li><strong>Analisis Tren:</strong> Grafik interaktif untuk melihat pola kesehatan mental jangka panjang.</li>
-  </ul>
-</details>
 
 ## 🚀 Teknologi yang Digunakan
 
@@ -91,15 +72,10 @@ Untuk menjalankan proyek ini secara lokal, ikuti langkah-langkah berikut:
 
 ## Screenshots (Contoh)
 
-<div align="center">
-  <table >
-    <tr>
-      <td><img src="https://via.placeholder.com/400x300.png?text=Screenshot+Halaman+Profil" alt="Screenshot Halaman Profil" style="width:100%; max-width:400px; border-radius: 8px;"></td>
-      <td><img src="https://via.placeholder.com/400x300.png?text=Screenshot+Halaman+Login" alt="Screenshot Halaman Login" style="width:100%; max-width:400px; border-radius: 8px;"></td>
-    </tr>
-    <tr><td colspan="2" align="center"><i>Contoh tampilan aplikasi (ganti dengan screenshot asli)</i></td></tr>
-  </table>
-</div>
+<!-- Tambahkan screenshot aplikasi Anda di sini untuk memberikan gambaran visual -->
+<!-- Contoh: -->
+<!-- !Halaman Profil -->
+<!-- !Halaman Login -->
 
 ##  Roadmap Pengembangan
 
@@ -127,7 +103,7 @@ Pastikan untuk mengikuti panduan gaya kode dan menyertakan tes untuk fitur baru 
 
 ## 📝 Lisensi
 
-Proyek ini dilisensikan di bawah **MIT License** - lihat file `LICENSE` untuk detailnya.
+Proyek ini dilisensikan di bawah [Nama Lisensi, mis. MIT License] - lihat file `LICENSE` untuk detailnya.
 <!-- Jika belum ada file LICENSE, Anda bisa membuatnya. Lisensi MIT adalah pilihan umum. -->
 
 ## 📧 Kontak
@@ -138,6 +114,4 @@ Link Proyek: https://github.com/MattYudha/Mental-Health-Care-Full-Stack-.git
 
 ---
 
-<p align="center">
-  Dibuat dengan <span style="color: #e25555;">&hearts;</span> untuk kesehatan mental yang lebih baik.
-</p>
+Dibuat dengan ❤️ untuk kesehatan mental yang lebih baik.
