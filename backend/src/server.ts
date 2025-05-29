@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { initializeSocketService } from "./services/socketService";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes"; // Add this
 import twoFactorRoutes from "./routes/twoFactorRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import { errorHandler } from "./middleware/errorHandler";
@@ -42,7 +43,7 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 // Initialize Socket.IO
@@ -65,6 +66,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/2fa", twoFactorRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/dashboard", dashboardRoutes); // Add this line before the error handler
 
 // Health check endpoint
 app.get("/health", (req, res) => {
