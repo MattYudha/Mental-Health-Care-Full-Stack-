@@ -1,7 +1,7 @@
 import React from "react";
 
 interface SectionProps {
-  title: string;
+  title?: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
@@ -13,32 +13,23 @@ const Section: React.FC<SectionProps> = ({
   children,
   className = "",
 }) => {
-  const sectionId = `section-${title.toLowerCase().replace(/\s+/g, "-")}`;
-
   return (
-    <section
-      className={`bg-white rounded-lg shadow-sm p-6 ${className}`}
-      aria-labelledby={`${sectionId}-title`}
-    >
-      <div className="mb-6">
-        <h2
-          id={`${sectionId}-title`}
-          className="text-xl font-semibold text-gray-900"
-        >
-          {title}
-        </h2>
-        {description && (
-          <p
-            className="mt-1 text-sm text-gray-600"
-            id={`${sectionId}-description`}
-          >
-            {description}
-          </p>
-        )}
-      </div>
-      <div
-        aria-describedby={description ? `${sectionId}-description` : undefined}
-      >
+    <section className={`space-y-4 ${className}`}>
+      {(title || description) && (
+        <div className="space-y-1">
+          {title && (
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              {title}
+            </h2>
+          )}
+          {description && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {description}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         {children}
       </div>
     </section>
