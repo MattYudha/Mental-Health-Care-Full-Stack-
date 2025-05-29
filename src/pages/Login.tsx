@@ -1,6 +1,6 @@
 // src/pages/Login.tsx
 import React, { useState, ChangeEvent, FormEvent } from "react";
-import { Link } from "react-router-dom"; // useNavigate typically handled by AuthContext after successful login
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -9,10 +9,9 @@ import toast from "react-hot-toast";
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // isLoading is now primarily managed by AuthContext's methods
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const { signIn, resetPassword, loading: authLoading } = useAuth(); // Use loading state from AuthContext
+  const { signIn, resetPassword, loading: authLoading } = useAuth();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -20,8 +19,6 @@ export const Login: React.FC = () => {
       toast.error("Email and password cannot be empty.");
       return;
     }
-    // The signIn function in AuthContext will handle its own loading state
-    // and navigation on success/toast on error.
     await signIn(email, password);
   };
 
@@ -31,11 +28,11 @@ export const Login: React.FC = () => {
       toast.error("Please enter your email address for password reset.");
       return;
     }
-    // The resetPassword function in AuthContext will handle its own loading state
     await resetPassword(resetEmail);
-    // Optionally clear fields or change view based on resetPassword's outcome (e.g., if it doesn't throw on error)
-    // setShowResetPassword(false); // This might be too soon if resetPassword is async and doesn't navigate
-    // setResetEmail("");
+    // After sending reset instructions, you might want to hide the form
+    // or provide further instructions to the user.
+    // setShowResetPassword(false); // Can uncomment if you want to immediately hide it
+    // setResetEmail(""); // Can uncomment if you want to clear the field
   };
 
   if (showResetPassword) {
@@ -63,6 +60,7 @@ export const Login: React.FC = () => {
                 setResetEmail(e.target.value)
               }
               placeholder="Email address"
+              fullWidth // Assuming this prop exists in your Input component
             />
             <div className="flex items-center justify-between">
               <Button
@@ -112,6 +110,7 @@ export const Login: React.FC = () => {
               setEmail(e.target.value)
             }
             placeholder="Email address"
+            fullWidth
           />
           <Input
             id="password"
@@ -124,6 +123,7 @@ export const Login: React.FC = () => {
               setPassword(e.target.value)
             }
             placeholder="Password"
+            fullWidth
           />
           <div className="flex items-center justify-between">
             <div className="text-sm">

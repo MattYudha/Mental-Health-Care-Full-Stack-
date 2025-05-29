@@ -1,5 +1,6 @@
+// src/pages/Register.tsx
 import React, { useState, ChangeEvent, FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -10,27 +11,19 @@ export const Register: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
-  const navigate = useNavigate();
+  const { signUp, loading: authLoading } = useAuth(); // Use loading state from AuthContext
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
-      setIsLoading(false);
       return;
     }
 
-    try {
-      await signUp(email, password, fullName);
-    } catch (error) {
-      // Error is already handled in AuthContext
-    } finally {
-      setIsLoading(false);
-    }
+    // The signUp function in AuthContext will handle its own loading state
+    // and navigation on success/toast on error.
+    await signUp(email, password, fullName);
   };
 
   return (
@@ -63,6 +56,7 @@ export const Register: React.FC = () => {
                 setFullName(e.target.value)
               }
               placeholder="Full name"
+              fullWidth
             />
             <Input
               id="email-address"
@@ -75,6 +69,7 @@ export const Register: React.FC = () => {
                 setEmail(e.target.value)
               }
               placeholder="Email address"
+              fullWidth
             />
             <Input
               id="password"
@@ -87,6 +82,7 @@ export const Register: React.FC = () => {
                 setPassword(e.target.value)
               }
               placeholder="Password"
+              fullWidth
             />
             <Input
               id="confirm-password"
@@ -99,11 +95,12 @@ export const Register: React.FC = () => {
                 setConfirmPassword(e.target.value)
               }
               placeholder="Confirm password"
+              fullWidth
             />
           </div>
 
           <div>
-            <Button type="submit" className="w-full" isLoading={isLoading}>
+            <Button type="submit" className="w-full" isLoading={authLoading}>
               Create account
             </Button>
           </div>

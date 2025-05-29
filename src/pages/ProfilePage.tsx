@@ -1,3 +1,4 @@
+// src/pages/Profile.tsx
 import React, { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,22 +19,30 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import Section from "../components/ui/Section";
 import PrivacySecuritySettings from "../components/PrivacySecuritySettings";
+import NotificationSettingsComponent from "../components/NotificationSettings"; // Renamed to avoid conflict
 import { profileSchema, ProfileFormData } from "../schemas/profileSchema";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
-import type { Profile, NotificationSettings } from "../lib/supabaseClient";
+import { userApi } from "../api/auth"; // Import the userApi for profile updates
+import { notificationApi } from "../api/notification"; // Import notificationApi for settings
+
+// Import types from lib/supabaseClient
+import type {
+  Profile as SupabaseProfileType,
+  NotificationSettings as SupabaseNotificationSettingsType,
+} from "../lib/supabaseClient";
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const { user, signOut } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [notificationSettings, setNotificationSettings] =
-    useState<NotificationSettings | null>(null);
+    useState<SupabaseNotificationSettingsType | null>(null);
 
-  // User data state
-  const [userData, setUserData] = useState<Profile>({
+  // User data state, aligned with SupabaseProfileType
+  const [userData, setUserData] = useState<SupabaseProfileType>({
     id: "",
-    full_name: "",
+    full_name: null, // Can be null in DB
     phone_number: null,
     join_date: "",
     streak: 0,
@@ -52,16 +61,19 @@ const ProfilePage: React.FC = () => {
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: userData.full_name,
-      email: user?.email || "",
-      phone: userData.phone_number || "",
+      name: "", // Initialize with empty string, will be reset by useEffect
+      email: "",
+      phone: "",
     },
   });
 
   // Fetch profile and notification settings data
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         // Fetch profile data
@@ -71,32 +83,52 @@ const ProfilePage: React.FC = () => {
           .eq("id", user.id)
           .single();
 
-        if (profileError) throw profileError;
-
-        if (profileData) {
-          setUserData(profileData);
-          reset({
-            name: profileData.full_name,
-            email: user.email || "",
-            phone: profileData.phone_number || "",
-          });
+        if (profileError) {
+          console.error("Supabase profile fetch error:", profileError);
+          // Handle case where profile might not exist for a new user yet
+          // based on handle_new_user trigger in Supabase.
+          // If profileData is null because the trigger hasn't run yet,
+          // create a temporary default profile for the form.
+          if (profileError.code === "PGRST116") {
+            // No rows found for single()
+            setUserData({
+              id: user.id,
+              full_name: user.email?.split("@")[0] || "New User",
+              phone_number: null,
+              join_date: new Date().toISOString(),
+              streak: 0,
+              completed_activities: 0,
+              risk_score_current: 0,
+              risk_score_previous: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            throw profileError;
+          }
+        } else if (profileData) {
+          setUserData(profileData as SupabaseProfileType);
         }
 
         // Fetch notification settings
-        const { data: settingsData, error: settingsError } = await supabase
-          .from("notification_settings")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
+        const { data: settingsData, error: settingsError } =
+          await notificationApi.getNotificationSettings();
 
         if (settingsError) throw settingsError;
 
         if (settingsData) {
           setNotificationSettings(settingsData);
         }
+
+        // Update form with fetched data
+        reset({
+          name: profileData?.full_name || user.email?.split("@")[0] || "",
+          email: user.email || "",
+          phone: profileData?.phone_number || "",
+        });
       } catch (error: any) {
         console.error("Error fetching data:", error);
-        toast.error("Failed to load profile data");
+        toast.error(error.message || "Failed to load profile data.");
       } finally {
         setIsLoading(false);
       }
@@ -109,25 +141,20 @@ const ProfilePage: React.FC = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: data.name,
-          phone_number: data.phone || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+      const updatedUser = await userApi.updateProfile({
+        id: user.id, // Pass ID to API
+        name: data.name,
+        email: data.email, // Email might not be updatable via this endpoint, ensure backend handles it
+        phone: data.phone || null,
+      });
 
-      if (error) throw error;
-
-      // Update userData state
       setUserData((prev) => ({
         ...prev,
-        full_name: data.name,
-        phone_number: data.phone || null,
-        updated_at: new Date().toISOString(),
+        full_name: updatedUser.name,
+        phone_number: updatedUser.phone || null,
+        // Update other fields if the API returns them
+        updated_at: new Date().toISOString(), // Assuming API updates this
       }));
-
       toast.success("Profile updated successfully!");
     } catch (error: any) {
       console.error("Error updating profile:", error);
@@ -135,31 +162,12 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleNotificationSettingChange = async (
-    setting: keyof NotificationSettings,
-    value: boolean
+  // This function is now handled by the NotificationSettings component internally
+  // but it's good practice to keep the handler for state management if needed.
+  const handleNotificationSettingsChange = (
+    updatedSettings: SupabaseNotificationSettingsType
   ) => {
-    if (!user || !notificationSettings) return;
-
-    try {
-      const { error } = await supabase
-        .from("notification_settings")
-        .update({
-          [setting]: value,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      setNotificationSettings((prev) =>
-        prev ? { ...prev, [setting]: value } : null
-      );
-      toast.success("Notification settings updated!");
-    } catch (error: any) {
-      console.error("Error updating notification settings:", error);
-      toast.error(error.message || "Failed to update notification settings");
-    }
+    setNotificationSettings(updatedSettings);
   };
 
   const handleSignOut = async () => {
@@ -202,7 +210,7 @@ const ProfilePage: React.FC = () => {
                   {...register("email")}
                   error={errors.email?.message}
                   fullWidth
-                  disabled
+                  disabled // Email typically not directly editable here
                 />
 
                 <Input
@@ -212,7 +220,7 @@ const ProfilePage: React.FC = () => {
                   error={errors.phone?.message}
                   placeholder="Add a phone number"
                   fullWidth
-                ></Input>
+                />
 
                 <Button
                   type="submit"
@@ -267,15 +275,19 @@ const ProfilePage: React.FC = () => {
                         userData.risk_score_previous ? (
                           <span className="ml-2 text-sm text-red-500 flex items-center">
                             <TrendingDown size={16} />
-                            {userData.risk_score_current -
-                              userData.risk_score_previous}
+                            {Math.abs(
+                              userData.risk_score_current -
+                                userData.risk_score_previous
+                            )}
                             %
                           </span>
                         ) : (
                           <span className="ml-2 text-sm text-green-500 flex items-center">
                             <TrendingDown size={16} className="rotate-180" />
-                            {userData.risk_score_previous -
-                              userData.risk_score_current}
+                            {Math.abs(
+                              userData.risk_score_previous -
+                                userData.risk_score_current
+                            )}
                             %
                           </span>
                         )}
@@ -288,81 +300,114 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
             </Section>
+
+            <Section title="Settings">
+              <div className="divide-y divide-gray-200">
+                <button
+                  onClick={() => setActiveTab("notifications")}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
+                >
+                  <div className="flex items-center">
+                    <div className="p-2 bg-gray-100 rounded-full text-gray-600 mr-3">
+                      <Bell size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        Notifications
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Manage how and when you receive alerts
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-400" />
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("privacy-security")}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
+                >
+                  <div className="flex items-center">
+                    <div className="p-2 bg-gray-100 rounded-full text-gray-600 mr-3">
+                      <Lock size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        Privacy & Security
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Update password and security settings
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-400" />
+                </button>
+
+                {/* You had "preferences" tab, but no content in renderTabContent for it.
+                    If it's intentional, it's fine. Otherwise, consider adding content or removing. */}
+                <button
+                  onClick={() => setActiveTab("preferences")}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 text-left"
+                >
+                  <div className="flex items-center">
+                    <div className="p-2 bg-gray-100 rounded-full text-gray-600 mr-3">
+                      <Settings size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        Preferences
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Customize your experience
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-400" />
+                </button>
+
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center p-4 hover:bg-gray-50 text-left text-red-500"
+                >
+                  <div className="p-2 bg-red-100 rounded-full text-red-500 mr-3">
+                    <LogOut size={18} />
+                  </div>
+                  <span className="text-sm font-medium">Sign Out</span>
+                </button>
+              </div>
+            </Section>
           </div>
         );
+
       case "notifications":
-        return notificationSettings ? (
-          <Section
-            title="Notification Settings"
-            description="Manage your email and push notification preferences."
-          >
-            <div className="space-y-4">
-              <div>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={notificationSettings.email_notifications}
-                    onChange={(e) =>
-                      handleNotificationSettingChange(
-                        "email_notifications",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-teal-600"></div>
-                  <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                    Email Notifications
-                  </span>
-                </label>
-              </div>
-              <div>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={notificationSettings.push_notifications}
-                    onChange={(e) =>
-                      handleNotificationSettingChange(
-                        "push_notifications",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-teal-600"></div>
-                  <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                    Push Notifications
-                  </span>
-                </label>
-              </div>
-              <div>
-                <label className="inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={notificationSettings.sms_notifications}
-                    onChange={(e) =>
-                      handleNotificationSettingChange(
-                        "sms_notifications",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-teal-600"></div>
-                  <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                    SMS Notifications
-                  </span>
-                </label>
-              </div>
-            </div>
-          </Section>
-        ) : (
-          <div className="text-center text-gray-500">
-            Notification settings not available.
+        return (
+          <div className="space-y-6">
+            <NotificationSettingsComponent
+              onSettingsChange={handleNotificationSettingsChange}
+            />
           </div>
         );
+
       case "privacy-security":
-        return <PrivacySecuritySettings />;
+        return (
+          <div className="space-y-6">
+            <PrivacySecuritySettings />
+          </div>
+        );
+
+      case "preferences":
+        return (
+          <div className="space-y-6">
+            <Section
+              title="Preferences"
+              description="Customize your application experience"
+            >
+              <p className="text-gray-600">
+                More preferences will be available soon.
+              </p>
+            </Section>
+          </div>
+        );
       case "activity-history":
         return (
           <Section title="Activity History">
@@ -375,6 +420,7 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-600">Coming soon...</p>
           </Section>
         );
+
       default:
         return null;
     }
@@ -388,69 +434,84 @@ const ProfilePage: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:space-x-8">
         {/* Sidebar Navigation */}
         <div className="lg:w-1/4">
-          <div className="bg-white rounded-lg shadow p-6 space-y-2">
-            <button
-              className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
-                activeTab === "profile"
-                  ? "bg-teal-100 text-teal-800"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab("profile")}
-            >
-              <User className="mr-3 h-5 w-5" />
-              Profile
-            </button>
-            <button
-              className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
-                activeTab === "activity-history"
-                  ? "bg-teal-100 text-teal-800"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab("activity-history")}
-            >
-              <BarChart4 className="mr-3 h-5 w-5" />
-              Activity History
-            </button>
-            <button
-              className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
-                activeTab === "chat-history"
-                  ? "bg-teal-100 text-teal-800"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab("chat-history")}
-            >
-              <MessageSquare className="mr-3 h-5 w-5" />
-              Chat History
-            </button>
-            <button
-              className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
-                activeTab === "notifications"
-                  ? "bg-teal-100 text-teal-800"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab("notifications")}
-            >
-              <Bell className="mr-3 h-5 w-5" />
-              Notifications
-            </button>
-            <button
-              className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
-                activeTab === "privacy-security"
-                  ? "bg-teal-100 text-teal-800"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab("privacy-security")}
-            >
-              <Lock className="mr-3 h-5 w-5" />
-              Privacy & Security
-            </button>
-            <button
-              className="w-full text-left flex items-center p-3 rounded-lg text-red-600 hover:bg-red-100 transition-colors"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-3 h-5 w-5" />
-              Sign Out
-            </button>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col items-center pb-4 border-b border-gray-200">
+              <div className="h-20 w-20 rounded-full bg-teal-500 flex items-center justify-center text-white mb-3">
+                <User size={40} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-800">
+                {userData.full_name}
+              </h2>
+              <p className="text-sm text-gray-500">{user?.email}</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Member since {new Date(userData.join_date).toLocaleDateString()}
+              </p>
+            </div>
+
+            <div className="space-y-1 mt-4">
+              <button
+                onClick={() => setActiveTab("profile")}
+                className={`w-full flex items-center p-2 rounded-md text-sm ${
+                  activeTab === "profile"
+                    ? "bg-teal-50 text-teal-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <User size={16} className="mr-3" />
+                Profile
+              </button>
+              <button
+                onClick={() => setActiveTab("activity-history")}
+                className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
+                  activeTab === "activity-history"
+                    ? "bg-teal-100 text-teal-800"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <BarChart4 className="mr-3 h-5 w-5" />
+                Activity History
+              </button>
+              <button
+                onClick={() => setActiveTab("chat-history")}
+                className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
+                  activeTab === "chat-history"
+                    ? "bg-teal-100 text-teal-800"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <MessageSquare className="mr-3 h-5 w-5" />
+                Chat History
+              </button>
+              <button
+                onClick={() => setActiveTab("notifications")}
+                className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
+                  activeTab === "notifications"
+                    ? "bg-teal-100 text-teal-800"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Bell className="mr-3 h-5 w-5" />
+                Notifications
+              </button>
+              <button
+                onClick={() => setActiveTab("privacy-security")}
+                className={`w-full text-left flex items-center p-3 rounded-lg transition-colors ${
+                  activeTab === "privacy-security"
+                    ? "bg-teal-100 text-teal-800"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Lock className="mr-3 h-5 w-5" />
+                Privacy & Security
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="w-full text-left flex items-center p-3 rounded-lg text-red-600 hover:bg-red-100 transition-colors"
+              >
+                <LogOut className="mr-3 h-5 w-5" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
 
@@ -461,4 +522,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage;
+export { ProfilePage as Profile };

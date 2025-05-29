@@ -33,7 +33,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "speakeasy": "^2.0.0",
-    "zod": "^3.25.34"
+    "zod": "^3.25.36"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

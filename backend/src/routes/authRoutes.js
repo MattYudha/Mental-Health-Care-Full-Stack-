@@ -1,37 +1,41 @@
-const express = require("express");
-// Komentari import asli untuk sementara
-// const { register, login, logout, getCurrentUser } = require('../controllers/authController');
-// const { protect } = require('../middlewares/authMiddleware');
+// backend/src/routes/authRoutes.ts
+import express from "express";
+import {
+  register,
+  login,
+  getCurrentUser,
+  changePassword,
+  getTwoFactorStatus,
+} from "../controllers/authController";
+import { protect } from "../middleware/authMiddleware"; // Using 'protect' middleware consistently
+import rateLimit from "express-rate-limit";
 
 const router = express.Router();
 
-// Middleware untuk logging di level authRoutes
-router.use((req, res, next) => {
-  console.log(
-    `[authRoutes.js SIMPLIFIED] Path: ${req.path}, Method: ${req.method}, URL: ${req.url}`
-  );
-  next();
+// Rate limiter for password change
+const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    message:
+      "Too many password change attempts from this IP, please try again after 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-router.post("/register", (req, res, next) => {
-  console.log(
-    `[authRoutes.js SIMPLIFIED] Attempting to match POST /register. req.url: ${req.url}`
-  );
-  // register(req, res, next); // Komentari controller asli
-  res.status(200).json({ message: "Simplified POST /register route hit!" });
-});
+// Public routes
+router.post("/register", register);
+router.post("/login", login);
 
-// Komentari rute lain untuk sementara
-// router.post('/login', login);
-// router.post('/logout', protect, logout);
+// Protected routes (apply 'protect' middleware)
+router.get("/me", protect, getCurrentUser);
+router.put(
+  "/change-password",
+  protect, // Ensure protection
+  passwordChangeLimiter,
+  changePassword
+);
+router.get("/2fa/status", protect, getTwoFactorStatus);
 
-router.get("/me", (req, res, next) => {
-  // Hapus 'protect' dan controller asli untuk sementara
-  console.log(
-    `[authRoutes.js SIMPLIFIED] Attempting to match GET /me. req.url: ${req.url}`
-  );
-  // getCurrentUser(req, res, next); // Komentari controller asli
-  res.status(200).json({ message: "Simplified GET /me route hit!" });
-});
-
-module.exports = router;
+export default router;

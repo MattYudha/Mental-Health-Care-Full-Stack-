@@ -1,3 +1,4 @@
+// src/components/NotificationSettings.tsx
 import React, { useState, useEffect } from "react";
 import {
   notificationApi,
@@ -5,6 +6,7 @@ import {
 } from "../api/notification";
 import toast from "react-hot-toast";
 import { Bell, BellOff, Loader2 } from "lucide-react";
+import Section from "./ui/Section"; // Assuming you want to use your Section component
 
 interface NotificationSettingsProps {
   onSettingsChange?: (settings: NotificationSettingsType) => void;
@@ -57,48 +59,59 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-      </div>
+      <Section
+        title="Notification Settings"
+        description="Manage your email and push notification preferences."
+      >
+        <div className="flex items-center justify-center p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+        </div>
+      </Section>
     );
   }
 
   if (!settings) {
     return (
-      <div className="p-4 text-center text-gray-500">
-        Failed to load notification settings
-      </div>
+      <Section
+        title="Notification Settings"
+        description="Manage your email and push notification preferences."
+      >
+        <div className="p-4 text-center text-gray-500">
+          Failed to load notification settings.
+        </div>
+      </Section>
     );
   }
 
+  // Ensure these keys match the NotificationSettingsType and your backend expectations
   const notificationTypes = [
     {
-      key: "notifyActivityReminders",
+      key: "notify_activity_reminders", // Changed to snake_case
       label: "Activity Reminders",
       description: "Get reminders for daily activities and exercises",
     },
     {
-      key: "notifyProgressUpdates",
+      key: "notify_progress_updates", // Changed to snake_case
       label: "Progress Updates",
       description: "Receive updates about your progress and achievements",
     },
     {
-      key: "notifySupportMessages",
+      key: "notify_support_messages", // Changed to snake_case
       label: "Support Messages",
       description: "Get notified when you receive messages from support",
     },
     {
-      key: "notifyNewArticles",
+      key: "notify_new_articles", // Changed to snake_case
       label: "New Articles",
       description: "Stay informed about new educational content",
     },
     {
-      key: "notifyRiskAlerts",
+      key: "notify_risk_alerts", // Changed to snake_case
       label: "Risk Alerts",
       description: "Get notified about important risk assessments",
     },
     {
-      key: "notifyWeeklyReports",
+      key: "notify_weekly_summary", // Changed to snake_case, previously notifyWeeklyReports
       label: "Weekly Reports",
       description: "Receive weekly progress reports",
     },
@@ -106,25 +119,28 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
 
   const deliveryMethods = [
     {
-      key: "emailNotifications",
+      key: "email_notifications", // Changed to snake_case
       label: "Email Notifications",
       description: "Receive notifications via email",
     },
     {
-      key: "pushNotifications",
+      key: "push_notifications", // Changed to snake_case
       label: "Push Notifications",
       description: "Receive notifications in your browser",
+    },
+    // Assuming you have SMS notifications field as per ProfilePage.tsx
+    {
+      key: "sms_notifications", // Changed to snake_case
+      label: "SMS Notifications",
+      description: "Receive notifications via SMS",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900">
-          Notification Settings
-        </h3>
-      </div>
-
+    <Section
+      title="Notification Settings"
+      description="Manage your email and push notification preferences."
+    >
       <div className="space-y-4">
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-3">
@@ -204,7 +220,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Section>
   );
 };
 

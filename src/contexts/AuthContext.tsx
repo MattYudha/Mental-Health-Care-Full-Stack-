@@ -4,12 +4,14 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { AuthResponse } from "../types/auth"; // Import AuthResponse type
 
 interface AuthContextType {
-  user: User | null;
+  user: User | null; // Supabase User type
   session: Session | null;
-  loading: boolean; // True saat sesi awal sedang dimuat ATAU operasi auth sedang berjalan
+  loading: boolean; // True when initial session is loading OR an auth operation is in progress
   isAuthenticated: boolean;
+  token: string | null; // Added to easily expose token for API calls
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -24,8 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [initialLoading, setInitialLoading] = useState(true); // Untuk pemuatan sesi awal
-  const [operationLoading, setOperationLoading] = useState(false); // Untuk operasi login/signup/dll.
+  const [token, setToken] = useState<string | null>(null); // State for the JWT token
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [operationLoading, setOperationLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } = await supabase.auth.getSession();
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      setToken(currentSession?.access_token ?? null); // Set token from session
       setInitialLoading(false);
     };
 
@@ -45,7 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      setInitialLoading(false); // Sesi telah diperbarui atau dikonfirmasi
+      setToken(currentSession?.access_token ?? null); // Update token on auth state change
+      setInitialLoading(false); // Session updated or confirmed
 
       if (_event === "SIGNED_IN") {
         navigate("/dashboard");
@@ -58,22 +63,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
-    if (!email || !password) {
-      toast.error("Email dan password harus diisi.");
+    if (!email.trim() || !password.trim()) {
+      toast.error("Email and password are required.");
       return;
     }
     setOperationLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      // Navigasi akan ditangani oleh onAuthStateChange
-    } catch (error: any) {
-      toast.error(
-        error.message || "Gagal masuk. Periksa kembali kredensial Anda."
+      // Use your backend auth endpoint for login instead of direct supabase if your backend handles it
+      // For now, sticking to supabase direct as per `backend/src/server.ts` routes setup (authRoutes handling login)
+      // If backend `auth/login` is custom, you'd use `authApi.login` here.
+      // Assuming you want to use the backend /api/auth/login endpoint for custom logic/validation
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        }
       );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Login failed");
+      }
+
+      const data: AuthResponse = await response.json();
+      localStorage.setItem("token", data.token); // Store token if backend returns one
+
+      // Now, use Supabase client to set the session
+      // This is crucial if Supabase client is also used for RLS policies
+      await supabase.auth.setSession({
+        access_token: data.token,
+        refresh_token: session?.refresh_token || "", // Use existing refresh token or handle new one
+      });
+      // onAuthStateChange will handle user and session state updates and navigation
+    } catch (error: any) {
+      toast.error(error.message || "Login failed. Check your credentials.");
       console.error("Sign-in error:", error);
     } finally {
       setOperationLoading(false);
@@ -81,44 +108,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!email || !password || !fullName) {
-      toast.error("Semua field wajib diisi untuk pendaftaran.");
+    if (!email.trim() || !password.trim() || !fullName.trim()) {
+      toast.error("All fields are required for registration.");
       return;
     }
     setOperationLoading(true);
     try {
-      const { error: signUpError, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName, // Penting untuk trigger Supabase
+      // Use your backend auth endpoint for register
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`, // Atau halaman konfirmasi
-        },
+          body: JSON.stringify({ name: fullName, email, password }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Registration failed");
+      }
+
+      const data: AuthResponse = await response.json();
+      localStorage.setItem("token", data.token); // Store token if backend returns one
+
+      await supabase.auth.setSession({
+        access_token: data.token,
+        refresh_token: session?.refresh_token || "",
       });
 
-      if (signUpError) throw signUpError;
-
-      if (data.user || data.session) {
-        // Jika Supabase mengembalikan user atau sesi (tergantung konfigurasi)
-        toast.success(
-          "Akun berhasil dibuat! Silakan cek email Anda untuk verifikasi jika diperlukan."
-        );
-        if (!data.session) {
-          // Jika tidak langsung login (perlu verifikasi email)
-          navigate("/login");
-        }
-        // Jika ada sesi, onAuthStateChange akan menangani navigasi ke dashboard
-      } else {
-        // Biasanya ini berarti verifikasi email diperlukan
-        toast.info(
-          "Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi."
-        );
-        navigate("/login");
-      }
+      toast.success(
+        "Account created successfully! Please check your email for verification if required."
+      );
+      // onAuthStateChange will handle navigation
     } catch (error: any) {
-      toast.error(error.message || "Gagal mendaftar.");
+      toast.error(error.message || "Registration failed.");
       console.error("Sign-up error:", error);
     } finally {
       setOperationLoading(false);
@@ -130,10 +156,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      // State user dan session akan di-clear oleh onAuthStateChange
-      // Navigasi ke /login juga akan ditangani oleh onAuthStateChange
     } catch (error: any) {
-      toast.error(error.message || "Gagal keluar.");
+      toast.error(error.message || "Failed to sign out.");
     } finally {
       setOperationLoading(false);
     }
@@ -143,12 +167,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setOperationLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/update-password`, // Ensure this route exists for password update
       });
       if (error) throw error;
-      toast.success("Instruksi reset password telah dikirim ke email Anda.");
+      toast.success("Password reset instructions sent to your email.");
     } catch (error: any) {
-      toast.error(error.message || "Gagal mengirim instruksi reset.");
+      toast.error(error.message || "Failed to send reset instructions.");
     } finally {
       setOperationLoading(false);
     }
@@ -161,9 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password: newPassword,
       });
       if (error) throw error;
-      toast.success("Password berhasil diperbarui.");
+      toast.success("Password updated successfully.");
     } catch (error: any) {
-      toast.error(error.message || "Gagal memperbarui password.");
+      toast.error(error.message || "Failed to update password.");
     } finally {
       setOperationLoading(false);
     }
@@ -176,6 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         session,
         loading: initialLoading || operationLoading,
         isAuthenticated: !!session?.user,
+        token,
         signIn,
         signUp,
         signOut,

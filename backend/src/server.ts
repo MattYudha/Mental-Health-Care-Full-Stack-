@@ -1,3 +1,4 @@
+// backend/src/server.ts
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
@@ -6,10 +7,15 @@ import { PrismaClient } from "@prisma/client";
 import { initializeSocketService } from "./services/socketService";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
-import dashboardRoutes from "./routes/dashboardRoutes"; // Add this
+import dashboardRoutes from "./routes/dashboardRoutes";
 import twoFactorRoutes from "./routes/twoFactorRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import { errorHandler } from "./middleware/errorHandler";
+import { protect } from "./middleware/authMiddleware"; // Ensure this is imported
+
+// Load environment variables as early as possible
+import dotenv from "dotenv";
+dotenv.config({ path: "./.env" }); // Assuming .env is in the project root or backend root. Adjust path as needed.
 
 const app = express();
 const httpServer = createServer(app);
@@ -30,7 +36,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) === -1) {
@@ -61,19 +66,22 @@ initializeSocketService(io);
 // Middleware
 app.use(express.json());
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/2fa", twoFactorRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/dashboard", dashboardRoutes); // Add this line before the error handler
-
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Error handling
+// Routes
+// Public routes do not need 'protect' middleware
+app.use("/api/auth", authRoutes); // Auth routes often have public endpoints (register, login)
+app.use("/api/2fa", twoFactorRoutes); // 2FA routes also have public and protected endpoints
+
+// Apply protect middleware to routes that require authentication
+app.use("/api/users", protect, userRoutes);
+app.use("/api/dashboard", protect, dashboardRoutes);
+app.use("/api/notifications", protect, notificationRoutes);
+
+// Error handling middleware (should be last)
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
